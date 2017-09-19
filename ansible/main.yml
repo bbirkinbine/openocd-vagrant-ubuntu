@@ -1,0 +1,75 @@
+# Written assuming ubuntu 16.04 server
+---
+- hosts: all
+  gather_facts: yes
+
+  tasks:
+
+    - name: "updates"
+      become: true
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: "install pre-requisites"
+      become: yes
+      apt: "name={{ item }} state=installed"
+      with_items:
+        - git
+        - gcc
+        - automake
+        - autoconf
+        - make
+        - libtool
+        - pkg-config
+        - libusb-1.0-0-dev
+        - libftdi-dev
+        - libhidapi-dev
+
+    - name: "get linux signing key"
+      become: yes
+      apt_key:
+        url: https://dl-ssl.google.com/linux/linux_signing_key.pub
+        state: present
+
+    - name: "git clone source"
+      become: no
+      git:
+        repo: https://github.com/ntfreak/openocd.git
+        dest: ~/openocd
+        depth: 1
+        version: master
+        force: yes
+
+    - name: "setup usb udev rules"
+      become: yes
+      copy:
+        src: ~/openocd/contrib/60-openocd.rules
+        dest: /etc/udev/rules.d/60-openocd.rules
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: "bootstrap openocd"
+      become: no
+      shell: "./bootstrap"
+      args:
+        chdir: ~/openocd
+
+    - name: "configure openocd"
+      become: no
+      shell: "./configure"
+      args:
+        chdir: ~/openocd
+
+    - name: "make openocd"
+      become: no
+      shell: "make"
+      args:
+        chdir: ~/openocd
+
+    - name: "install openocd"
+      become: yes
+      shell: "sudo make install"
+      args:
+        chdir: /home/ubuntu/openocd
